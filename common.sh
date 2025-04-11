@@ -80,7 +80,7 @@ build_qemu()
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
 
-    [ $(ls -A qemu-${vm_level}) ] || {
+    [ "$(ls -A qemu-${vm_level})" ] || {
         echo "Error: qemu-${vm_level} not fetched"
         exit 1
     }
@@ -176,7 +176,7 @@ build_image()
 
 build_seabios()
 {
-    [ $(ls -A seabios) ] || {
+    [ "$(ls -A seabios)" ] || {
         echo "Error: seabios not fetched"
         exit 1
     }
@@ -194,7 +194,7 @@ build_seabios()
 
 build_tdx_module()
 {
-    [ $(ls -A tdx-module) ] || {
+    [ "$(ls -A tdx-module)" ] || {
         echo "Error: tdx-module not fetched"
         exit 1
     }
@@ -204,7 +204,7 @@ build_tdx_module()
 
 build_seam_loader()
 {
-    [ $(ls -A seam-loader) ] || {
+    [ "$(ls -A seam-loader)" ] || {
         echo "Error: seam-loader not fetched"
         exit 1
     }
@@ -214,7 +214,7 @@ build_seam_loader()
 
 build_ovmf()
 {
-    [ $(ls -A edk2) ] || {
+    [ "$(ls -A edk2)" ] || {
         echo "Error: edk2 not existing"
     }
 
@@ -247,7 +247,7 @@ build_linux()
     run_cmd sudo apt install -y git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex \
                                 libelf-dev bison cpio zstd
 
-    [ $(ls -A linux-${vm_level}) ] || {
+    [ "$(ls -A linux-${vm_level})" ] || {
         echo "Error: linux-${vm_level} not existing"
         exit 1
     }
@@ -563,6 +563,12 @@ case $target in
         ;;
     "ovmf")
         build_ovmf
+        ;;
+    "tdx-module")
+        build_tdx_module
+        ;;
+    "seam-loader")
+        build_seam_loader
         ;;
     "linux")
         build_linux ${vm_level}

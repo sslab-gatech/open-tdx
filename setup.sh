@@ -5,11 +5,19 @@ l1_size=16384
 l2_size=8192
 
 echo "Running this script will install host kernel"
-echo "Is it okay? [y/N]"
+read -r -p "Is it okay? [y/N]" okay
+case ${okay} in
+    [yY][eE][sS]|[yY])
+        ;;
+    *)
+        echo "Aborted"
+        exit 1
+        ;;
+esac
 
 echo "Setting up OpenTDX..."
 
-# git submodule update --init --recursive
+git submodule update --init
 
 ./common.sh -t qemu -l l0 -d ${distribution}
 ./common.sh -t image -l l1 -d ${distribution} -s ${l1_size}
@@ -18,6 +26,8 @@ echo "Setting up OpenTDX..."
 
 ./common.sh -t seabios
 ./common.sh -t ovmf
+./common.sh -t tdx-module
+./common.sh -t seam-loader
 ./common.sh -t linux -l l0
 ./common.sh -t linux -l l1
 ./common.sh -t linux -l l2
