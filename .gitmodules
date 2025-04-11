@@ -26,3 +26,7 @@
 	path = seam-loader
 	url = git@github.com:JaewonHur/seam-loader
 	branch = opentdx-built
+[submodule "edk2"]
+	path = edk2
+	url = https://github.com/tianocore/edk2
+	branch = edk2-stable202502
