@@ -30,7 +30,7 @@ run_qemu()
     qemu_str+="-drive format=raw,file=${IMG} \\"
 
     qemu_str+="-kernel ${KERNEL} -initrd ${INITRD} -append \"${cmdline}\" \\"
-    qemu_str+="-nographic"
+    qemu_str+="-vga none -nodefaults -nographic -serial stdio"
 
     eval ${qemu_str}
 }

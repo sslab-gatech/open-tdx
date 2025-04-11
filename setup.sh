@@ -46,7 +46,7 @@ pushd kvm-l1 >/dev/null
 ./build.sh
 popd >/dev/null
 
-./common.sh -t l1
+./common.sh -t vm
 
 echo "============================================================"
 echo "= Installation is done                                     ="

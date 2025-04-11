@@ -174,15 +174,21 @@ build_image()
     popd > /dev/null
 }
 
-finalize_l1()
+finalize_vms()
 {
-    if [ ! -f images/l1.img ]
+    if [[ ! -f images/l1.img || ! -f images/l2.img ]]
     then
-        echo "Error: images/l1.img not found"
+        echo "Error: images/l1.img,l2.img not found"
         exit 1
     fi
 
     tmp=$(realpath tmp)
+    run_mount ${tmp} l2
+
+    sed -i 's/eth0/enp0s1/g' ${tmp}/etc/networks/interfaces
+
+    run_umount ${tmp}
+
     run_mount ${tmp} l1
 
     run_cmd sudo mkdir -p ${tmp}/root/images
@@ -541,7 +547,7 @@ usage() {
   echo "Options:" 1>&2
   echo "  -t <target>                  Specify which target to run" 1>&2
   echo "                               - options: qemu, image, seabios, ovmf, tdx-module," 1>&2 
-  echo "                                 seam-loader, linux, kernel, initrd, kvm, l1" 1>&2
+  echo "                                 seam-loader, linux, kernel, initrd, kvm, vm" 1>&2
   echo "  -l <vm_level>                Specify the VM nested level" >&2
   echo "                               - options: l0, l1" 1>&2
   echo "  -d <distribution>    Specify the distribution version of Debian" 1>&2
@@ -617,8 +623,8 @@ case $target in
     "kvm")
         extract_kvm ${vm_level}
         ;;
-    "l1")
-        finalize_l1
+    "vm")
+        finalize_vms
         ;;
     *)
         echo "Please provide -t <target>"

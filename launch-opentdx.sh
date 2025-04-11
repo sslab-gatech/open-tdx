@@ -49,6 +49,11 @@ run_qemu()
     qemu_str+="-virtfs local,path=${EDK2},mount_tag=${EDK2},security_model=passthrough,id=${EDK2} \\"
 
     qemu_str+="-kernel ${KERNEL} -initrd ${INITRD} -append \"${cmdline}\" \\"
+
+    [ ! -z $DEBUG ] && {
+        qemu_str+="-S -s \\"
+    }
+
     qemu_str+="-nographic"
 
     eval ${qemu_str}
