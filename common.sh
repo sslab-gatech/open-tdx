@@ -80,8 +80,8 @@ build_qemu()
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
 
-    [ -d qemu-${vm_level} ] || {
-        echo "Error: qemu-${vm_level} not existing"
+    [ $(ls -A qemu-${vm_level}) ] || {
+        echo "Error: qemu-${vm_level} not fetched"
         exit 1
     }
 
@@ -92,9 +92,8 @@ build_qemu()
         run_cmd sudo apt update
 
         export DEBIAN_FRONTEND=noninteractive
-
         run_cmd sudo apt install -y build-essential git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev
-        run_cmd sudo apt build-dep -y qemu
+        run_cmd sudo -E apt build-dep -y qemu
         run_cmd sudo apt install -y libaio-dev libbluetooth-dev libbrlapi-dev libbz2-dev
         run_cmd sudo apt install -y libsasl2-dev libsdl1.2-dev libseccomp-dev libsnappy-dev libssh2-1-dev
         run_cmd sudo apt install -y python3 python-is-python3 python3-venv
@@ -177,8 +176,8 @@ build_image()
 
 build_seabios()
 {
-    [ -d seabios ] || {
-        echo "Error: seabios not existing"
+    [ $(ls -A seabios) ] || {
+        echo "Error: seabios not fetched"
         exit 1
     }
 
@@ -195,8 +194,8 @@ build_seabios()
 
 build_tdx_module()
 {
-    [ -d tdx-module ] || {
-        echo "Error: tdx-module not existing"
+    [ $(ls -A tdx-module) ] || {
+        echo "Error: tdx-module not fetched"
         exit 1
     }
 
@@ -205,12 +204,17 @@ build_tdx_module()
 
 build_seam_loader()
 {
+    [ $(ls -A seam-loader) ] || {
+        echo "Error: seam-loader not fetched"
+        exit 1
+    }
+
     echo "build seam_loader"
 }
 
 build_ovmf()
 {
-    [ -d edk2 ] || {
+    [ $(ls -A edk2) ] || {
         echo "Error: edk2 not existing"
     }
 
@@ -243,7 +247,7 @@ build_linux()
     run_cmd sudo apt install -y git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex \
                                 libelf-dev bison cpio zstd
 
-    [ -d linux-${vm_level} ] || {
+    [ $(ls -A linux-${vm_level}) ] || {
         echo "Error: linux-${vm_level} not existing"
         exit 1
     }
