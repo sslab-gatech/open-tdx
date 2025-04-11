@@ -1,0 +1,28 @@
+[submodule "qemu-l0"]
+	path = qemu-l0
+	url = git@github.com:JaewonHur/qemu
+	branch = opentdx-host
+[submodule "qemu-l1"]
+	path = qemu-l1
+	url = git@github.com:JaewonHur/qemu
+	branch = opentdx-guest
+[submodule "linux-l0"]
+	path = linux-l0
+	url = git@github.com:JaewonHur/linux
+	branch = opentdx-host
+[submodule "linux-l1"]
+	path = linux-l1
+	url = git@github.com:JaewonHur/linux
+	branch = opentdx-guest
+[submodule "linux-l2"]
+	path = linux-l2
+	url = git@github.com:JaewonHur/linux
+	branch = opentdx-guest
+[submodule "seabios"]
+	path = seabios
+	url = git@github.com:JaewonHur/seabios
+	branch = opentdx
+[submodule "seam-loader"]
+	path = seam-loader
+	url = git@github.com:JaewonHur/seam-loader
+	branch = opentdx-built
