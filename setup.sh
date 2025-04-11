@@ -42,6 +42,12 @@ git submodule update --init
 ./common.sh -t kvm -l l0
 ./common.sh -t kvm -l l1
 
+pushd kvm-l1 >/dev/null
+./build.sh
+popd >/dev/null
+
+./common.sh -t l1
+
 echo "============================================================"
 echo "= Installation is done                                     ="
 echo "= Please reboot and select installed kernel in GRUB window ="

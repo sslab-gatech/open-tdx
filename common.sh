@@ -174,6 +174,31 @@ build_image()
     popd > /dev/null
 }
 
+finalize_l1()
+{
+    if [ ! -f images/l1.img ]
+    then
+        echo "Error: images/l1.img not found"
+        exit 1
+    fi
+
+    tmp=$(realpath tmp)
+    run_mount ${tmp} l1
+
+    run_cmd sudo mkdir -p ${tmp}/root/images
+    run_cmd sudo cp images/l2.img ${tmp}/root/images/
+
+    fstab=""
+    for dir in "qemu-l1" "kvm-l1" "linux-l2" "edk2" "scripts"
+    do
+        fstab+="${dir} /root/${dir} 9p trans=virtio,version=9p2000.L 0 0\n"
+    done
+
+    echo -ne ${fstab} | sudo tee -a ${tmp}/etc/fstab
+
+    run_umount ${tmp}
+}
+
 build_seabios()
 {
     [ "$(ls -A seabios)" ] || {
@@ -231,7 +256,7 @@ build_ovmf()
     sed -i 's/= IA32/= X64/g' Conf/target.txt
     sed -i 's/= VS2022/= GCC5/g' Conf/target.txt
 
-    run_cmd build -v -t GCC5 -DBUILD_TARGETS=RELEASE -DDEBUG_ON_SERIAL_PORT=FALSE -a X64 -p OvmfPkg/OvmfPkgX64.dsc -Y COMPILE_INFO -y .dummy # I don't know -y option
+    run_cmd build -v -t GCC5 -DBUILD_TARGETS=RELEASE -DDEBUG_ON_SERIAL_PORT=FALSE -a X64 -p OvmfPkg/OvmfPkgX64.dsc -Y COMPILE_INFO -y .dummy -b RELEASE # I don't know -y option
 
     popd >/dev/null
 }
@@ -515,7 +540,8 @@ usage() {
   echo "Usage: $0 [-t <target>] [-l <vm_level>] [-d <distribution>] [-s <image_size>]" 1>&2
   echo "Options:" 1>&2
   echo "  -t <target>                  Specify which target to run" 1>&2
-  echo "                               - options: all, qemu, image, linux, kernel, initrd, kvm" 1>&2
+  echo "                               - options: qemu, image, seabios, ovmf, tdx-module," 1>&2 
+  echo "                                 seam-loader, linux, kernel, initrd, kvm, l1" 1>&2
   echo "  -l <vm_level>                Specify the VM nested level" >&2
   echo "                               - options: l0, l1" 1>&2
   echo "  -d <distribution>    Specify the distribution version of Debian" 1>&2
@@ -590,6 +616,9 @@ case $target in
         ;;
     "kvm")
         extract_kvm ${vm_level}
+        ;;
+    "l1")
+        finalize_l1
         ;;
     *)
         echo "Please provide -t <target>"
