@@ -17,7 +17,7 @@ check_argument()
     val=$3
 
     [ -z ${val} ] && {
-        echo "Error: Please provide -${opt} <${arg}>"
+        echo "Error: Please provide ${opt} <${arg}>"
         exit 1
     }
 }
