@@ -30,3 +30,7 @@
 	path = edk2
 	url = https://github.com/tianocore/edk2
 	branch = edk2-stable202502
+[submodule "tdx-module"]
+	path = tdx-module
+	url = git@github.com:JaewonHur/tdx-module
+	branch = opentdx
