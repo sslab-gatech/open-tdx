@@ -199,7 +199,9 @@ build_tdx_module()
         exit 1
     }
 
+    pushd tdx-module >/dev/null
     run_cmd "OPENTDX=1 ./build.sh"
+    popd >/dev/null
 }
 
 build_seam_loader()
