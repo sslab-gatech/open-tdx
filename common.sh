@@ -347,9 +347,13 @@ install_kernel()
 
     if [ ${vm_level} = "l0" ];
     then
+        pushd linux-${vm_level} >/dev/null
+
         run_cmd sudo make -j${MAX_CORES} modules_install
         run_cmd sudo make -j${MAX_CORES} headers_install
         run_cmd sudo make install
+
+        popd >/dev/null
 
         # TODO grub
         sudo sed -i "s/GRUB_TIMEOUT=0/GRUB_TIMEOUT=10/g" /etc/default/grub
