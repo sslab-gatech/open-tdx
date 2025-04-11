@@ -12,11 +12,12 @@ run_cmd()
 
 check_argument()
 {
-    arg=$1
-    val=$2
+    opt=$1
+    arg=$2
+    val=$3
 
     [ -z ${val} ] && {
-        echo "Error: Please provide ${arg}"
+        echo "Error: Please provide -${opt} <${arg}>"
         exit 1
     }
 }
@@ -66,8 +67,8 @@ build_qemu()
     local vm_level=$1
     local distribution=$2
 
-    check_argument "vm_level" ${vm_level}
-    check_argument "distribution" ${distribution}
+    check_argument "-l" "vm_level" ${vm_level}
+    check_argument "-d" "distribution" ${distribution}
 
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
@@ -142,9 +143,9 @@ build_image()
     local distribution=$2
     local size=$3
 
-    check_argument "vm_level" ${vm_level}
-    check_argument "distribution" ${distribution}
-    check_argument "size" ${size}
+    check_argument "-l" "vm_level" ${vm_level}
+    check_argument "-d" "distribution" ${distribution}
+    check_argument "-s" "image_size" ${size}
 
     run_cmd sudo apt install -y debootstrap
 
@@ -227,7 +228,7 @@ build_linux()
 {
     local vm_level=$1
 
-    check_argument "vm_level" ${vm_level}
+    check_argument "-l" "vm_level" ${vm_level}
 
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
@@ -317,7 +318,7 @@ install_kernel()
 {
     local vm_level=$1
 
-    check_argument "vm_level" ${vm_level}
+    check_argument "-l" "vm_level" ${vm_level}
 
     run_cmd sudo apt install -y rsync
 
@@ -388,7 +389,7 @@ build_initrd()
 {
     local vm_level=$1
 
-    check_argument "vm_level" ${vm_level}
+    check_argument "-l" "vm_level" ${vm_level}
 
     if [ ${vm_level} = "l0" ]
     then
@@ -433,7 +434,7 @@ extract_kvm()
 {
     local vm_level=$1
 
-    check_argument "vm_level" ${vm_level}
+    check_argument "-l" "vm_level" ${vm_level}
 
     kvm=kvm-${vm_level}
 
@@ -492,7 +493,7 @@ usage() {
   echo "                               - options: all, qemu, image, linux, kernel, initrd, kvm" 1>&2
   echo "  -l <vm_level>                Specify the VM nested level" >&2
   echo "                               - options: l0, l1" 1>&2
-  echo "  -d <distribution>            Specify the distribution version of Debian" 1>&2
+  echo "  -d <distribution>    Specify the distribution version of Debian" 1>&2
   echo "                               - options: bookworm" 1>&2
   echo "  -s <image_size>              Specify the image size (MB)" 1>&2
   echo "                               - examples: 32768 (32G)" 1>&2
