@@ -185,7 +185,7 @@ finalize_vms()
     tmp=$(realpath tmp)
     run_mount ${tmp} l2
 
-    sed -i 's/eth0/enp0s1/g' ${tmp}/etc/networks/interfaces
+    sudo sed -i 's/eth0/enp0s1/g' ${tmp}/etc/network/interfaces
 
     run_umount ${tmp}
 
@@ -212,7 +212,7 @@ build_seabios()
         exit 1
     }
 
-    run_cmd sudo apt install -y build-essential
+    run_cmd sudo apt install -y build-essential python3 python-is-python3
 
     pushd seabios >/dev/null
 
@@ -251,7 +251,7 @@ build_ovmf()
         echo "Error: edk2 not existing"
     }
 
-    run_cmd sudo apt install -y nasm iasl python3 python-is-python3 python3-venv
+    run_cmd sudo apt install -y nasm iasl python3 python-is-python3 python3-venv uuid-dev
 
     pushd edk2 >/dev/null
     run_cmd git submodule update --init --recursive
