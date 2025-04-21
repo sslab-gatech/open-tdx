@@ -25,8 +25,10 @@ run_qemu()
     local mem=$1
     local smp=$2
     local ssh_port=$3
+    local debug_port=$4
 
     nested_ssh_port=$((ssh_port + 1))
+    nested_debug_port=$((debug_port + 1))
 
     qemu_str=""
     qemu_str+="${QEMU} -cpu host -machine q35,kernel_irqchip=split -enable-kvm \\"
@@ -40,18 +42,19 @@ run_qemu()
     qemu_str+="-drive format=raw,file=${IMG} \\"
 
     qemu_str+="-device virtio-net-pci,netdev=net0 \\"
-    qemu_str+="-netdev user,id=net0,host=10.0.2.10,hostfwd=tcp::${ssh_port}-:22,hostfwd=tcp::${nested_ssh_port}-:10032 \\"
+    qemu_str+="-netdev user,id=net0,host=10.0.2.10,hostfwd=tcp::${ssh_port}-:22,hostfwd=tcp::${nested_ssh_port}-:10032,hostfwd=tcp::${nested_debug_port}-:1234 \\"
 
     qemu_str+="-virtfs local,path=${QEMU_L1},mount_tag=${QEMU_L1},security_model=passthrough,id=${QEMU_L1} \\"
     qemu_str+="-virtfs local,path=${KVM_L1},mount_tag=${KVM_L1},security_model=passthrough,id=${KVM_L1} \\"
     qemu_str+="-virtfs local,path=${LINUX_L2},mount_tag=${LINUX_L2},security_model=passthrough,id=${LINUX_L2} \\"
     qemu_str+="-virtfs local,path=${SCRIPTS},mount_tag=${SCRIPTS},security_model=passthrough,id=${SCRIPTS} \\"
     qemu_str+="-virtfs local,path=${EDK2},mount_tag=${EDK2},security_model=passthrough,id=${EDK2} \\"
+    qemu_str+="-virtfs local,path=qemu-bare,mount_tag=qemu-bare,security_model=passthrough,id=qemu-bare \\"
 
     qemu_str+="-kernel ${KERNEL} -initrd ${INITRD} -append \"${cmdline}\" \\"
 
     [ ! -z $DEBUG ] && {
-        qemu_str+="-S -s \\"
+        qemu_str+="-S -gdb tcp::${debug_port} \\"
     }
 
     qemu_str+="-nographic"
@@ -61,7 +64,7 @@ run_qemu()
 
 # Function to show usage information
 usage() {
-  echo "Usage: $0 [-m <mem>] [-s <smp>] [-p <ssh_port>]" 1>&2
+  echo "Usage: $0 [-m <mem>] [-s <smp>] [-p <ssh_port>] [-d <debug_port>]" 1>&2
   echo "Options:" 1>&2
   echo "  -m <mem>              Specify the memory size" 1>&2
   echo "                               - default: 8g" 1>&2
@@ -70,14 +73,18 @@ usage() {
   echo "  -p <ssh_port>         Specify the ssh port for l1/l2" 1>&2
   echo "                         port for l2 will be <ssh_port> + 1" 1>&2
   echo "                               - default: 10032" 1>&2
+  echo "  -d <debug_port>       Specify the debug port for l1/l2" 1>&2
+  echo "                         port for l2 will be <debug_port> + 1" 1>&2
+  echo "                               - default: 1234" 1>&2
   exit 1
 }
 
 mem=8g
 smp=8
 ssh_port=10032
+debug_port=1234
 
-while getopts ":hm:s:p:" opt; do
+while getopts ":hm:s:p:d:" opt; do
     case $opt in
         h)
             usage
@@ -94,6 +101,10 @@ while getopts ":hm:s:p:" opt; do
             ssh_port=$OPTARG
             echo "SSH Port: ${ssh_port}"
             ;;
+        d)
+            debug_port=$OPTARG
+            echo "Debug Port: ${debug_port}"
+            ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
             usage
@@ -103,4 +114,4 @@ done
 
 shift $((OPTIND -1))
 
-run_qemu ${mem} ${smp} ${ssh_port}
+run_qemu ${mem} ${smp} ${ssh_port} ${debug_port}
