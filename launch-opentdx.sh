@@ -18,8 +18,6 @@ LINUX_L2=linux-l2
 EDK2=edk2
 SCRIPTS=scripts
 
-cmdline="console=ttyS0 root=/dev/sda rw earlyprintk=serial net.ifnames=0 nohibernate debug"
-
 run_qemu()
 {
     local mem=$1
@@ -29,6 +27,30 @@ run_qemu()
 
     nested_ssh_port=$((ssh_port + 1))
     nested_debug_port=$((debug_port + 1))
+
+
+    cmdline="console=ttyS0 root=/dev/sda rw earlyprintk=serial net.ifnames=0 nohibernate debug"
+    gpu_str=""
+
+    [ ! -z ${GPU} ] && {
+        bdfs=($(lspci | grep -i nvidia | cut -d' ' -f1))
+        [ ${#bdfs[@]} -eq 0 ] && {
+            echo "[-] No GPU found"
+            exit 1
+        }
+
+        vdids=$(lspci -nn | grep -i nvidia | sed -n 's/.*\[\(....:....\)\].*/\1/p' | paste -sd,)
+
+        cmdline+=" intel_iommu=on iommu=on"
+        cmdline+=" vfio-pci.ids=${vdids}"
+
+        gpu_str="-device intel-iommu,intremap=on,caching-mode=on \\"
+        gpu_str+="-device pci-bridge,id=bridge0,chassis_nr=1 \\"
+        for bdf in ${bdfs[@]}
+        do
+            gpu_str+="-device vfio-pci,bus=bridge0,host=${bdf} \\"
+        done
+    }
 
     qemu_str=""
     qemu_str+="${QEMU} -cpu host -machine q35,kernel_irqchip=split -enable-kvm \\"
@@ -49,17 +71,18 @@ run_qemu()
     qemu_str+="-virtfs local,path=${LINUX_L2},mount_tag=${LINUX_L2},security_model=passthrough,id=${LINUX_L2} \\"
     qemu_str+="-virtfs local,path=${SCRIPTS},mount_tag=${SCRIPTS},security_model=passthrough,id=${SCRIPTS} \\"
     qemu_str+="-virtfs local,path=${EDK2},mount_tag=${EDK2},security_model=passthrough,id=${EDK2} \\"
-    qemu_str+="-virtfs local,path=qemu-bare,mount_tag=qemu-bare,security_model=passthrough,id=qemu-bare \\"
+
+    qemu_str+=${gpu_str}
 
     qemu_str+="-kernel ${KERNEL} -initrd ${INITRD} -append \"${cmdline}\" \\"
 
-    [ ! -z $DEBUG ] && {
+    [ ! -z ${DEBUG} ] && {
         qemu_str+="-S -gdb tcp::${debug_port} \\"
     }
 
     qemu_str+="-nographic"
 
-    eval ${qemu_str}
+    eval sudo ${qemu_str}
 }
 
 # Function to show usage information
