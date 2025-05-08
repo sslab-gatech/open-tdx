@@ -385,7 +385,7 @@ install_kernel()
     then
         pushd linux-${vm_level} >/dev/null
 
-        run_cmd sudo make -j${MAX_CORES} modules_install
+        run_cmd sudo make -j${MAX_CORES} INSTALL_MOD_STRIP=1 modules_install
         run_cmd sudo make -j${MAX_CORES} headers_install
         run_cmd sudo make install
 
