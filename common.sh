@@ -230,6 +230,8 @@ build_tdx_module()
         exit 1
     }
 
+    run_cmd sudo apt install -y python3-dev
+
     pushd tdx-module >/dev/null
     run_cmd "OPENTDX=1 ./build.sh"
     popd >/dev/null
@@ -302,6 +304,9 @@ build_linux()
         ./scripts/config --enable CONFIG_EXPERT
         ./scripts/config --enable CONFIG_KVM_SW_PROTECTED_VM
         ./scripts/config --enable CONFIG_KVM_GENERIC_PRIVATE_MEM
+
+        ./scripts/config --disable SYSTEM_TRUSTED_KEYS
+        ./scripts/config --disable SYSTEM_REVOCATION_KEYS
     else # l1, l2
         run_cmd make defconfig
         run_cmd make kvm_guest.config
