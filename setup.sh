@@ -19,6 +19,8 @@ echo "Setting up OpenTDX..."
 
 git submodule update --init
 
+./common.sh -t phybits
+
 ./common.sh -t qemu -l l0 -d ${distribution}
 ./common.sh -t image -l l1 -d ${distribution} -s ${l1_size}
 ./common.sh -t image -l l2 -d ${distribution} -s ${l2_size}

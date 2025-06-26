@@ -63,6 +63,40 @@ exit
     fi
 }
 
+fix_phy_bits()
+{
+    [[ "$(ls -A seabios)" || "$(ls -A tdx-module)" || "$(ls -A linux-l0)" || "$(ls -A linux-l1)" ]] || {
+        echo "Error: submodules not fetched"
+        exit 1
+    }
+
+    # phybits=$(lscpu | grep "Address sizes" | awk '{print $3}')
+    phybits=39
+    maxgpa=$(( phybits-1 ))
+    # When phybits is small, mktmebits should be reduced to avoid occupying real GPA
+    mktmebits=$(( (phybits-36<6) ? phybits-36 : 6))
+
+    if [ $phybits -le 36 ];
+    then
+        echo "Error: this machine has physical address bits (${phybits}) lower than 36"
+        exit 1
+    fi
+
+    if [ $mktmebits -ne 6 ];
+    then
+        sed -i "253s/andl \$0xf/movl \$0x${mktmebits}/" seabios/src/fw/tdx.c
+        sed -i "14s/6ULL/${mktmebits}ULL/" linux-l0/arch/x86/kvm/vmx/mktme.h
+    fi
+
+    sed -i "104s/46/${phybits}/g" tdx-module/src/common/helpers/helpers.h
+    sed -i "113s/45/${maxgpa}/g" tdx-module/src/common/helpers/helpers.h
+    sed -i "113s/46/${phybits}/g" tdx-module/src/common/helpers/helpers.h
+    sed -i "128s/45/${maxgpa}/g" tdx-module/src/common/helpers/helpers.h
+    sed -i "615s/46/${phybits}/g" tdx-module/src/common/x86_defs/x86_defs.h
+
+    sed -i "43s/45/${maxgpa}/g" linux-l1/arch/x86/kvm/vmx/tdx.c
+}
+
 build_qemu()
 {
     local vm_level=$1
@@ -598,6 +632,9 @@ done
 shift $((OPTIND -1))
 
 case $target in
+    "phybits")
+        fix_phy_bits
+        ;;
     "qemu")
         build_qemu ${vm_level} ${distribution}
         ;;
