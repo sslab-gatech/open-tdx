@@ -234,9 +234,23 @@ finalize_vms()
         fstab+="${dir} /root/${dir} 9p trans=virtio,version=9p2000.L 0 0\n"
     done
 
+    [ -d open-gpu-kernel-modules ] && {
+        fstab+="open-gpu-kernel-modules /root/open-gpu-kernel-modules 9p trans=virtio,version=9p2000.L 0 0\n"
+    }
+
     echo -ne ${fstab} | sudo tee -a ${tmp}/etc/fstab
 
     run_umount ${tmp}
+
+    [ -d open-gpu-kernel-modules ] && {
+        run_mount ${tmp} l2
+
+        fstab="open-gpu-kernel-modules /root/open-gpu-kernel-modules 9p trans=virtio,version=9p2000.L 0 0\n"
+        echo -ne ${fstab} | sudo tee -a ${tmp}/etc/fstab
+
+        run_umount ${tmp}
+    }
+    
 }
 
 build_seabios()
@@ -323,7 +337,7 @@ build_linux()
 
     MAKE="make -C linux-${vm_level} -j${MAX_CORES} LOCALVERSION="
 
-    run_cmd ${MAKE} distclean
+    run_cmd sudo ${MAKE} distclean
 
     pushd linux-${vm_level} > /dev/null
 
@@ -379,6 +393,20 @@ build_linux()
         ./scripts/config --module CONFIG_TDX_GUEST_DRIVER
         ./scripts/config --disable CONFIG_HYPERV
 
+        ./scripts/config --enable CONFIG_VFIO
+        ./scripts/config --enable CONFIG_VFIO_GROUP
+        ./scripts/config --enable CONFIG_VFIO_CONTAINER
+        ./scripts/config --enable CONFIG_VFIO_IOMMU_TYPE1
+        ./scripts/config --enable CONFIG_VFIO_VIRQFD
+        ./scripts/config --enable CONFIG_VFIO_PCI_CORE
+        ./scripts/config --enable CONFIG_VFIO_PCI_MMAP
+        ./scripts/config --enable CONFIG_VFIO_PCI_INTX
+        ./scripts/config --enable CONFIG_VFIO_PCI
+        ./scripts/config --enable CONFIG_KVM_VFIO
+
+        ./scripts/config --enable CONFIG_IOMMUFD_DRIVER
+        ./scripts/config --module CONFIG_IOMMUFD
+        ./scripts/config --enable CONFIG_VFIO_DEVICE_CDEV
 
         # For debugging
         ./scripts/config --enable CONFIG_DEBUG_INFO_DWARF5
@@ -580,6 +608,43 @@ extract_kvm()
     chmod +x $kvm/build.sh
 }
 
+build_nvidia() {
+    version=570.144
+
+    NUM_CORES=$(nproc)
+    MAX_CORES=$(($NUM_CORES - 1))
+
+    run_cmd sudo apt install -y wget
+
+    [ -f linux-l2/arch/x86/boot/bzImage ] || {
+        echo "Error: linux-l1 not built"
+        exit 1
+    }
+
+    tmp=$(realpath tmp)
+    run_mount ${tmp} l2
+
+    [ -f ${version}.tar.gz ] || {
+        run_cmd wget https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${version}.tar.gz
+    }
+    run_cmd tar -zxvf ${version}.tar.gz
+    run_cmd mv open-gpu-kernel-modules-${version} open-gpu-kernel-modules
+
+    run_cmd make -j${MAX_CORES} -C open-gpu-kernel-modules SYSSRC=$(realpath linux-l2)
+
+    run_cmd sudo wget -O ${tmp}/root/NVIDIA-Linux-x86_64-${version}.run \
+        https://us.download.nvidia.com/XFree86/Linux-x86_64/${version}/NVIDIA-Linux-x86_64-${version}.run
+
+    run_chroot ${tmp} """
+cd /root/open-gpu-kernel-modules-${version}/kernel-open
+
+cd /root
+chmod +x NVIDIA-Linux-x86_64-${version}.run
+./NVIDIA-Linux-x86_64-${version}.run -s --no-kernel-modules
+"""
+    run_umount ${tmp}
+}
+
 # Function to show usage information
 usage() {
   echo "Usage: $0 [-t <target>] [-l <vm_level>] [-d <distribution>] [-s <image_size>]" 1>&2
@@ -664,6 +729,9 @@ case $target in
         ;;
     "kvm")
         extract_kvm ${vm_level}
+        ;;
+    "nvidia")
+        build_nvidia
         ;;
     "vm")
         finalize_vms
