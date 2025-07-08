@@ -609,7 +609,7 @@ extract_kvm()
 }
 
 build_nvidia() {
-    version=570.144
+    version=545.29.02
 
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
@@ -629,6 +629,8 @@ build_nvidia() {
     }
     run_cmd tar -zxvf ${version}.tar.gz
     run_cmd mv open-gpu-kernel-modules-${version} open-gpu-kernel-modules
+
+    run_cmd patch -p1 -d open-gpu-kernel-modules < patches/open-gpu-kernel-modules-${version}.patch
 
     run_cmd make -j${MAX_CORES} -C open-gpu-kernel-modules SYSSRC=$(realpath linux-l2)
 
