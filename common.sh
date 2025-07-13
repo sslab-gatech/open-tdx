@@ -70,8 +70,7 @@ fix_phy_bits()
         exit 1
     }
 
-    # phybits=$(lscpu | grep "Address sizes" | awk '{print $3}')
-    phybits=39
+    phybits=$(lscpu | grep "Address sizes" | awk '{print $3}')
     maxgpa=$(( phybits-1 ))
     # When phybits is small, mktmebits should be reduced to avoid occupying real GPA
     mktmebits=$(( (phybits-36<6) ? phybits-36 : 6))
