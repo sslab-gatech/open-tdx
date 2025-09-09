@@ -17,6 +17,7 @@ KVM_L1=kvm-l1
 LINUX_L2=linux-l2
 EDK2=edk2
 SCRIPTS=scripts
+OPENGPU=open-gpu-kernel-modules
 
 run_qemu()
 {
@@ -53,9 +54,23 @@ run_qemu()
     }
 
     qemu_str=""
+    tty_str=""
+
+    [ ! -z ${GDB} ] && {
+        [ -z ${TTY} ] && {
+            echo "[-] TTY not set"
+            exit 1
+        }
+
+        qemu_str+="gdb -args \\"
+        tty_str+="-serial ${TTY} \\"
+    }
+
     qemu_str+="${QEMU} -cpu host -machine q35,kernel_irqchip=split -enable-kvm \\"
     qemu_str+="-m ${mem} -smp ${smp} \\"
-    qemu_str+="-bios ${SEABIOS} \\"
+    [ ! -z ${BARE} ] || {
+        qemu_str+="-bios ${SEABIOS} \\"
+    }
 
     qemu_str+="-fw_cfg opt/opentdx.npseamldr,file=${NPSEAMLDR} \\"
     qemu_str+="-fw_cfg opt/opentdx.tdx_module,file=${TDXMODULE} \\"
@@ -72,7 +87,12 @@ run_qemu()
     qemu_str+="-virtfs local,path=${SCRIPTS},mount_tag=${SCRIPTS},security_model=passthrough,id=${SCRIPTS} \\"
     qemu_str+="-virtfs local,path=${EDK2},mount_tag=${EDK2},security_model=passthrough,id=${EDK2} \\"
 
+    [ ! -z ${GPU} ] && {
+        qemu_str+="-virtfs local,path=${OPENGPU},mount_tag=${OPENGPU},security_model=passthrough,id=${OPENGPU} \\"
+    }
+
     qemu_str+=${gpu_str}
+    qemu_str+=${tty_str}
 
     qemu_str+="-kernel ${KERNEL} -initrd ${INITRD} -append \"${cmdline}\" \\"
 
@@ -103,7 +123,7 @@ usage() {
 }
 
 mem=8g
-smp=8
+smp=1
 ssh_port=10032
 debug_port=1234
 

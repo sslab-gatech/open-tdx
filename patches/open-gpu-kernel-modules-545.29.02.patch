@@ -1,0 +1,96 @@
+diff --git a/kernel-open/nvidia-uvm/uvm.c b/kernel-open/nvidia-uvm/uvm.c
+index 6f95f17..a180a27 100644
+--- a/kernel-open/nvidia-uvm/uvm.c
++++ b/kernel-open/nvidia-uvm/uvm.c
+@@ -260,6 +260,7 @@ static void uvm_mm_release(struct file *filp, struct file *uvm_file)
+     struct mm_struct *mm = va_space_mm->mm;
+ 
+     if (uvm_va_space_mm_enabled(va_space)) {
++        uvm_va_space_revert_external(va_space);
+         uvm_va_space_mm_unregister(va_space);
+ 
+         if (uvm_va_space_mm_enabled(va_space))
+diff --git a/kernel-open/nvidia-uvm/uvm_map_external.c b/kernel-open/nvidia-uvm/uvm_map_external.c
+index a360328..6e18799 100644
+--- a/kernel-open/nvidia-uvm/uvm_map_external.c
++++ b/kernel-open/nvidia-uvm/uvm_map_external.c
+@@ -617,6 +617,11 @@ static NV_STATUS uvm_create_external_range(uvm_va_space_t *va_space, UVM_CREATE_
+                          params->base + params->length);
+     }
+ 
++    if (is_vm_encrypted(mm, va_range->node.start, va_range->node.end) == 1) {
++        set_vm_decrypted(mm, va_range->node.start, va_range->node.end);
++        va_range->external.decrypted = 1;
++    }
++
+     uvm_va_space_up_write(va_space);
+     uvm_va_space_mm_or_current_release_unlock(va_space, mm);
+     return status;
+diff --git a/kernel-open/nvidia-uvm/uvm_mem.c b/kernel-open/nvidia-uvm/uvm_mem.c
+index 5ba285c..88f25a0 100644
+--- a/kernel-open/nvidia-uvm/uvm_mem.c
++++ b/kernel-open/nvidia-uvm/uvm_mem.c
+@@ -806,6 +806,10 @@ static NV_STATUS mem_map_cpu_to_sysmem_user(uvm_mem_t *mem, struct vm_area_struc
+     UVM_ASSERT(uvm_mem_is_sysmem(mem));
+     uvm_assert_mmap_lock_locked(vma->vm_mm);
+ 
++    if (uvm_mem_is_sysmem_dma(mem)) {
++        vma->vm_page_prot = uvm_pgprot_decrypted(vma->vm_page_prot);
++    }
++
+     // TODO: Bug 1995015: high-order page allocations need to be allocated as
+     // compound pages in order to be able to use vm_insert_page on them. This
+     // is not currently being exercised because the only allocations using this
+diff --git a/kernel-open/nvidia-uvm/uvm_va_range.h b/kernel-open/nvidia-uvm/uvm_va_range.h
+index e837924..484e8c7 100644
+--- a/kernel-open/nvidia-uvm/uvm_va_range.h
++++ b/kernel-open/nvidia-uvm/uvm_va_range.h
+@@ -252,6 +252,9 @@ typedef struct
+     // range because each GPU is able to map a completely different set of
+     // allocations to the same VA range.
+     uvm_ext_gpu_range_tree_t gpu_ranges[UVM_ID_MAX_GPUS];
++
++    // Remember encryption status of external VA range for confidential VMs
++    bool decrypted;
+ } uvm_va_range_external_t;
+ 
+ // va_range state when va_range.type == UVM_VA_RANGE_TYPE_CHANNEL. This
+diff --git a/kernel-open/nvidia-uvm/uvm_va_space.c b/kernel-open/nvidia-uvm/uvm_va_space.c
+index 4334eaf..d060970 100644
+--- a/kernel-open/nvidia-uvm/uvm_va_space.c
++++ b/kernel-open/nvidia-uvm/uvm_va_space.c
+@@ -414,6 +414,22 @@ void uvm_va_space_detach_all_user_channels(uvm_va_space_t *va_space, struct list
+         uvm_gpu_va_space_detach_all_user_channels(gpu_va_space, deferred_free_list);
+ }
+ 
++void uvm_va_space_revert_external(uvm_va_space_t *va_space)
++{
++    uvm_va_range_t *va_range, *next_va_range;
++    struct mm_struct *mm = va_space->va_space_mm.mm;
++
++    uvm_va_space_down_write(va_space);
++    uvm_for_each_va_range_safe(va_range, next_va_range, va_space) {
++        if (va_range->type == UVM_VA_RANGE_TYPE_EXTERNAL &&
++            va_range->external.decrypted == 1) {
++            set_vm_encrypted(mm, va_range->node.start, va_range->node.end);
++            va_range->external.decrypted = 0;
++        }
++    }
++    uvm_va_space_up_write(va_space);
++}
++
+ void uvm_va_space_destroy(uvm_va_space_t *va_space)
+ {
+     uvm_va_range_t *va_range, *va_range_next;
+diff --git a/kernel-open/nvidia-uvm/uvm_va_space.h b/kernel-open/nvidia-uvm/uvm_va_space.h
+index 8099dcd..64d1c34 100644
+--- a/kernel-open/nvidia-uvm/uvm_va_space.h
++++ b/kernel-open/nvidia-uvm/uvm_va_space.h
+@@ -402,6 +402,7 @@ static bool uvm_va_space_processor_has_memory(uvm_va_space_t *va_space, uvm_proc
+ }
+ 
+ NV_STATUS uvm_va_space_create(struct address_space *mapping, uvm_va_space_t **va_space_ptr, NvU64 flags);
++void uvm_va_space_revert_external(uvm_va_space_t *va_space);
+ void uvm_va_space_destroy(uvm_va_space_t *va_space);
+ 
+ // All VA space locking should be done with these wrappers. They're macros so
