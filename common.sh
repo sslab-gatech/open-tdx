@@ -249,7 +249,8 @@ finalize_vms()
 
         run_umount ${tmp}
     }
-    
+
+    exit 0 # Ensure returning 0 
 }
 
 build_seabios()
@@ -637,8 +638,6 @@ build_nvidia() {
         https://us.download.nvidia.com/XFree86/Linux-x86_64/${version}/NVIDIA-Linux-x86_64-${version}.run
 
     run_chroot ${tmp} """
-cd /root/open-gpu-kernel-modules-${version}/kernel-open
-
 cd /root
 chmod +x NVIDIA-Linux-x86_64-${version}.run
 ./NVIDIA-Linux-x86_64-${version}.run -s --no-kernel-modules
