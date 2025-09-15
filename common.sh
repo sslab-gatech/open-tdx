@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+maxgpa=52
+sharedgpa=51
+mktmebits=6
+
 run_cmd()
 {
     echo "$*"
@@ -70,30 +74,16 @@ fix_phy_bits()
         exit 1
     }
 
-    phybits=$(lscpu | grep "Address sizes" | awk '{print $3}')
-    maxgpa=$(( phybits-1 ))
+    maxgpa=$(lscpu | grep "Address sizes" | awk '{print $3}')
+    sharedgpa=$(( maxgpa-1 ))
     # When phybits is small, mktmebits should be reduced to avoid occupying real GPA
-    mktmebits=$(( (phybits-36<6) ? phybits-36 : 6))
+    mktmebits=$(( (maxgpa<46) ? 3 : 6))
 
-    if [ $phybits -le 36 ];
+    if [ $maxgpa -le 39 ];
     then
-        echo "Error: this machine has physical address bits (${phybits}) lower than 36"
+        echo "Error: this machine has physical address bits (${maxgpa}) lower than 39"
         exit 1
     fi
-
-    if [ $mktmebits -ne 6 ];
-    then
-        sed -i "253s/andl \$0xf/movl \$0x${mktmebits}/" seabios/src/fw/tdx.c
-        sed -i "14s/6ULL/${mktmebits}ULL/" linux-l0/arch/x86/kvm/vmx/mktme.h
-    fi
-
-    sed -i "104s/46/${phybits}/g" tdx-module/src/common/helpers/helpers.h
-    sed -i "113s/45/${maxgpa}/g" tdx-module/src/common/helpers/helpers.h
-    sed -i "113s/46/${phybits}/g" tdx-module/src/common/helpers/helpers.h
-    sed -i "128s/45/${maxgpa}/g" tdx-module/src/common/helpers/helpers.h
-    sed -i "615s/46/${phybits}/g" tdx-module/src/common/x86_defs/x86_defs.h
-
-    sed -i "43s/45/${maxgpa}/g" linux-l1/arch/x86/kvm/vmx/tdx.c
 }
 
 build_qemu()
@@ -280,8 +270,10 @@ build_tdx_module()
 
     run_cmd sudo apt install -y python3-dev
 
+    fix_phy_bits
+
     pushd tdx-module >/dev/null
-    run_cmd "OPENTDX=1 ./build.sh"
+    run_cmd "OPENTDX=1 MAXGPA=${maxgpa} SHAREDGPA=${sharedgpa} ./build.sh"
     popd >/dev/null
 }
 
@@ -323,6 +315,8 @@ build_linux()
     local vm_level=$1
 
     check_argument "-l" "vm_level" ${vm_level}
+
+    fix_phy_bits
 
     NUM_CORES=$(nproc)
     MAX_CORES=$(($NUM_CORES - 1))
@@ -422,7 +416,7 @@ build_linux()
     # TODO: Need to check configs are correctly set
 
     echo "[+] Build linux kernel..."
-    run_cmd ${MAKE}
+    run_cmd ${MAKE} MAXGPA=${maxgpa} SHAREDGPA=${sharedgpa} MKTMEBITS=${mktmebits}ULL
 }
 
 install_kernel()
@@ -559,6 +553,8 @@ extract_kvm()
 
     check_argument "-l" "vm_level" ${vm_level}
 
+    fix_phy_bits
+
     kvm=kvm-${vm_level}
 
     [ -d $kvm ] || {
@@ -604,7 +600,7 @@ extract_kvm()
     sed -i "0,/^kvm-y\s\+[-+]\?=\s\+/s//kvm-y                   += ${targets}\\\''\n                          /" $kvm/Makefile
     sed -i "s/''//g" $kvm/Makefile
 
-    echo "make -j -C $PWD/linux-${vm_level} M=$PWD/$kvm" > $kvm/build.sh
+    echo "make -j -C $PWD/linux-${vm_level} M=$PWD/$kvm MAXGPA=${maxgpa} SHAREDGPA=${sharedgpa} MKTMEBITS=${mktmebits}ULL" > $kvm/build.sh
     chmod +x $kvm/build.sh
 }
 
@@ -697,9 +693,6 @@ done
 shift $((OPTIND -1))
 
 case $target in
-    "phybits")
-        fix_phy_bits
-        ;;
     "qemu")
         build_qemu ${vm_level} ${distribution}
         ;;
