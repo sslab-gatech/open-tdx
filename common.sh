@@ -84,6 +84,8 @@ fix_phy_bits()
         echo "Error: this machine has physical address bits (${maxgpa}) lower than 39"
         exit 1
     fi
+
+    echo MAXGPA=${maxgpa}, SHAREDGPA=${sharedgpa}, MKTMEBITS=${mktmebits}
 }
 
 build_qemu()
@@ -728,6 +730,9 @@ case $target in
         ;;
     "vm")
         finalize_vms
+        ;;
+    "phy")
+        fix_phy_bits
         ;;
     *)
         echo "Please provide -t <target>"
