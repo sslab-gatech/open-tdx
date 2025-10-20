@@ -76,10 +76,58 @@ As environment variables you can give
 - `UNSTRIPPED`: output debug symbols under `bin/debug.unstripped` directory (used for loading symbol file in GDB)
 
 ## Other Tips
-OpenTDX contains various helper scripts for implementations and debuggins.
+OpenTDX contains various helper scripts for implementations and debuggings.
+
+### Attaching GDB to L1 KVM and TDX module
+
+L1 KVM and TDX module can be debugged through QEMU GDB interface. Debug port is set default to `1234`.
+
+Attach to the L1 VM as follows:
+```
+DEBUG=1 ./launch-opentdx.sh # This launches QEMU in debug mode
+
+(another terminal) $ cd linux-l1
+(another terminal) $ gdb ./vmlinux # linux-l1/scripts/gdb/vmlinux-gdb.py should be loaded here
+
+(gdb) target remote:1234 # This attaches GDB to the L1 VM
+(gdb) c # Once you attach, boot the L1 kernel
+```
+
+Once the GDB is attached and L1 kernel is booted, follow the steps below to load L1 KVM and break at the entrypoint of TDX module:
+```
+ssh -i images/l1.id_rsa -p 10032 root@localhost # ssh into L1 VM
+(l1-vm) $ ./scripts/load-kvm.sh
+
+# Ctrl-C in gdb to obtain terminal
+(gdb) lx-symbols ../kvm-l1 # This will load debug symbols of L1 KVM
+(gdb) b __seamcall # Set breakpoint at seamcall macro
+(gdb) c # Continue
+
+(l1-vm) $ ./scripts/launch-td.sh # GDB will break at __seamcall
+
+(gdb at __seamcall) d 1 # Delete breakpoint
+(gdb at __seamcall) layout asm
+(gdb at __seamcall) si # Step multiple times until executing the exact seamcall instruction
+...
+(gdb at __seamcall) si # Execute the seamcall instruction finally
+```
+
+Executing `seamcall` above will step into the TDX module's entrypoint. The entrypoint address (i.e., `RIP` value right after the execution) will be like `0xffffXXXX000YYYYY`, where `XXXX` changes every time as TDX module applys ASLR, and `YYYYY` depends on the source code and toolchain.
+
+We have to load the symbol file at the base address of `text` section, which should be `0xffffXXXX00000ZZZ` where `ZZZ` can be retrieved from `readelf -S tdx-module/bin/debug/libtdx.so`. For example, in my trial, the entrypoint address was `0xffffa73800034424` and `text` base address was `0xffffa738000001a0`.
+
+Once you retrieve the available information, you can load the symbol file as follows:
+```
+(gdb at entrypoint) add-symbol-file ../tdx-module/bin/debug/libtdx.so 0xffffXXXX00000ZZZ # And type 'y' to the prompt
+```
+
+You can also load symbol file with source code information using `../tdx-module/bin/debug.unstrippted/libtdx.so` (after building it as explained in [Customizing TDX Module](#customizing-tdx-module)).
+
 
 ### Adding New Features to KVM
-After `setup.sh` is done, `kvm-l0`, `kvm-l1` directories are produced. Developers can directly build `kvm` modules only by running `build.sh` scripts in such directories, and reloads such modules only.
+After `setup.sh` is done, `kvm-l0`, `kvm-l1` directories are produced. Developers can directly build `kvm` modules only by running `build.sh` scripts in such directories, and reload them only.
+Host modules (i.e., `kvm-l0`) can be loaded directly.
+Guest modules (i.e., `kvm-l1`) are automatically passthroughed in the L1 VM and loaded using `./scripts/load-kvm.sh` in the VM.
 
 ### Manuals of scripts
 - `common.sh`
@@ -117,4 +165,5 @@ Options:
   -s <smp>              Specify the SMP
                                - default: 1
 ```
+
 
