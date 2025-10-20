@@ -66,10 +66,12 @@ Running `dmesg | grep -i tdx` inside TD VM will show following messages:
 We provide scripts for building TDX module. After modifying TDX module source, one can build it with following commands (it needs docker):
 ```
 cd tdx-module
-OPENTDX=1 ./build.sh # This will output libtdx.so & libtdx.so.sigstruct under bin/debug
+OPENTDX=1 MAXGPA=<max-gpa> SHAREDGPA=<shared-gpa> ./build.sh # This will output libtdx.so & libtdx.so.sigstruct under bin/debug
 ```
 As environment variables you can give
 - `OPENTDX`: required to build a TDX module that runs on OpenTDX
+- `MAXGPA`: maximum GPA bits of L1 VM (you can get by running `./common.sh -t phy`)
+- `SHAREDGPA`: `MAXGPA - 1`
 - `DEBUGTRACE`: enable logging in TDX module
 - `UNSTRIPPED`: output debug symbols under `bin/debug.unstripped` directory (used for loading symbol file in GDB)
 
@@ -86,7 +88,7 @@ After `setup.sh` is done, `kvm-l0`, `kvm-l1` directories are produced. Developer
 Options:
   -t <target>                  Specify which target to run
                                - options: qemu, image, seabios, ovmf, tdx-module,
-                                 seam-loader, linux, kernel, initrd, kvm, vm
+                                 seam-loader, linux, kernel, initrd, kvm, vm, phy
   -l <vm_level>                Specify the VM nested level
                                - options: l0, l1
   -d <distribution>    Specify the distribution version of Debian
@@ -115,3 +117,4 @@ Options:
   -s <smp>              Specify the SMP
                                - default: 1
 ```
+
